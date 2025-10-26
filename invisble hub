@@ -1,0 +1,2 @@
+invisible fe:
+loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Invisible-script-20557"))()
