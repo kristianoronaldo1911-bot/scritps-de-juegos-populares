@@ -1,0 +1,2 @@
+aimbot universal:
+loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Universal-Aimbot-23560"))() 
