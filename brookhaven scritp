@@ -1,0 +1,2 @@
+scrip-brookhaven:
+loadstring(game:HttpGet("https://rawscripts.net/raw/Brookhaven-RP-Coquette-Hub-41921"))()
