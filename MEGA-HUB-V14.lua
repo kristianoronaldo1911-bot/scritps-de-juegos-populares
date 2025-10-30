@@ -1,10 +1,11 @@
--- MEGA HUB PRO V11 - + FLOAT + SALIR RÁPIDO (LEAVE)
+-- MEGA HUB PRO V14 - TODOS LOS SCRIPTS + FLOAT CON VUELO + CARTEL
 -- Creado por Grok con amor infinito para ti <3
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -69,7 +70,7 @@ local updates = Instance.new("TextLabel")
 updates.Size = UDim2.new(1, -20, 0, 65)
 updates.Position = UDim2.new(0, 10, 0, 50)
 updates.BackgroundTransparency = 1
-updates.Text = "ACTUALIZACIONES:\n• + FLOAT (volar)\n• + SALIR RÁPIDO (leave)\n• Cartel con SÍ/NO\n• Arrastrar sin volver"
+updates.Text = "ACTUALIZACIONES:\n• TODOS LOS SCRIPTS\n• FLOAT = VUELO + CARTEL\n• Presiona F\n• Cartel ON/OFF"
 updates.TextColor3 = Color3.fromRGB(0, 255, 170)
 updates.Font = Enum.Font.Gotham
 updates.TextSize = 13
@@ -83,7 +84,7 @@ local fixes = Instance.new("TextLabel")
 fixes.Size = UDim2.new(1, -20, 0, 65)
 fixes.Position = UDim2.new(0, 10, 0, 120)
 fixes.BackgroundTransparency = 1
-fixes.Text = "ERRORES CORREGIDOS:\n• Botón volvía al centro\n• Menú se pegaba\n• ZIndex roto"
+fixes.Text = "ERRORES CORREGIDOS:\n• Scripts desaparecían\n• Float fallaba\n• Rejoin roto"
 fixes.TextColor3 = Color3.fromRGB(255, 200, 100)
 fixes.Font = Enum.Font.Gotham
 fixes.TextSize = 13
@@ -121,7 +122,126 @@ end)
 
 task.spawn(showInfo)
 
--- === BOTÓN PRINCIPAL (ARRASTRABLE + SE QUEDA DONDE LO DEJES) ===
+-- === CARTEL DE ESTADO FLOAT (ON/OFF) ===
+local floatStatus = Instance.new("Frame")
+floatStatus.Size = UDim2.new(0, 200, 0, 50)
+floatStatus.Position = UDim2.new(0.5, -100, 0, -60)
+floatStatus.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+floatStatus.BorderSizePixel = 0
+floatStatus.Visible = false
+floatStatus.ZIndex = 40
+floatStatus.Parent = screenGui
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 16)
+statusCorner.Parent = floatStatus
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 1, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "FLOAT: OFF"
+statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextSize = 18
+statusLabel.ZIndex = 41
+statusLabel.Parent = floatStatus
+
+-- === FUNCIÓN PARA MOSTRAR CARTEL DE ESTADO ===
+local function showFloatStatus(text, color)
+    statusLabel.Text = text
+    statusLabel.TextColor3 = color
+    floatStatus.Position = UDim2.new(0.5, -100, 0, -60)
+    floatStatus.Visible = true
+
+    TweenService:Create(floatStatus, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0.5, -100, 0, 20)
+    }):Play()
+
+    task.delay(2, function()
+        if floatStatus and floatStatus.Parent then
+            TweenService:Create(floatStatus, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+                Position = UDim2.new(0.5, -100, 0, -60)
+            }):Play()
+            task.wait(0.3)
+            floatStatus.Visible = false
+        end
+    end)
+end
+
+-- === FLOAT + VUELO REAL ===
+local flying = false
+local flySpeed = 100
+local bv, bg
+
+local function startFly()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    local root = character:WaitForChild("HumanoidRootPart")
+
+    bv = Instance.new("BodyVelocity")
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.Parent = root
+
+    bg = Instance.new("BodyGyro")
+    bg.P = 9e9
+    bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bg.CFrame = root.CFrame
+    bg.Parent = root
+
+    flying = true
+    showFloatStatus("FLOAT: ON", Color3.fromRGB(0, 255, 100))
+
+    spawn(function()
+        while flying and root and root.Parent do
+            local cam = workspace.CurrentCamera
+            local move = Vector3.new()
+
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then move = move - Vector3.new(0, 1, 0) end
+
+            if move.Magnitude > 0 then
+                bv.Velocity = move.Unit * flySpeed
+                bg.CFrame = cam.CFrame
+            else
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
+            task.wait()
+        end
+        if bv then bv:Destroy() end
+        if bg then bg:Destroy() end
+    end)
+end
+
+local function stopFly()
+    flying = false
+    if bv then bv:Destroy() end
+    if bg then bg:Destroy() end
+    showFloatStatus("FLOAT: OFF", Color3.fromRGB(255, 80, 80))
+end
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F then
+        if flying then
+            stopFly()
+        else
+            startFly()
+        end
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    if flying then
+        startFly()
+    end
+end)
+
+-- === BOTÓN PRINCIPAL ===
 local mainButton = Instance.new("TextButton")
 mainButton.Size = UDim2.new(0, 220, 0, 60)
 mainButton.Position = UDim2.new(0.5, -110, 0.5, -30)
@@ -138,20 +258,9 @@ local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 20)
 btnCorner.Parent = mainButton
 
--- Sombra
-local shadow = Instance.new("ImageLabel")
-shadow.Size = UDim2.new(1, 10, 1, 10)
-shadow.Position = UDim2.new(0, -5, 0, -5)
-shadow.BackgroundTransparency = 1
-shadow.Image = "rbxassetid://6014261993"
-shadow.ImageColor3 = Color3.new(0, 0, 0)
-shadow.ImageTransparency = 0.7
-shadow.ZIndex = 9
-shadow.Parent = mainButton
-
 -- === MENÚ ===
 local menu = Instance.new("Frame")
-menu.Size = UDim2.new(0, 400, 0, 580)  -- Más alto para nuevos botones
+menu.Size = UDim2.new(0, 400, 0, 700)  -- Más alto
 menu.Position = UDim2.new(0.5, -200, 1.2, 0)
 menu.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 menu.BorderSizePixel = 0
@@ -163,7 +272,6 @@ local menuCorner = Instance.new("UICorner")
 menuCorner.CornerRadius = UDim.new(0, 22)
 menuCorner.Parent = menu
 
--- Título
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 65)
 title.BackgroundColor3 = Color3.fromRGB(0, 255, 170)
@@ -174,11 +282,6 @@ title.TextSize = 24
 title.ZIndex = 16
 title.Parent = menu
 
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 22)
-titleCorner.Parent = title
-
--- Scrolling Frame
 local scrollingFrame = Instance.new("ScrollingFrame")
 scrollingFrame.Size = UDim2.new(1, -20, 1, -85)
 scrollingFrame.Position = UDim2.new(0, 10, 0, 75)
@@ -189,7 +292,7 @@ scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 scrollingFrame.ZIndex = 16
 scrollingFrame.Parent = menu
 
--- === SCRIPTS (ANTIGUOS + NUEVOS) ===
+-- === TODOS LOS SCRIPTS ===
 local scripts = {
     {name = "NAMELESS HUB",       url = "https://raw.githubusercontent.com/ily123950/Vulkan/refs/heads/main/Tr"},
     {name = "LENNON HUB",         url = "https://pastefy.app/MJw2J4T6/raw"},
@@ -200,57 +303,8 @@ local scripts = {
     {name = "EMOTES",             url = "https://raw.githubusercontent.com/7yd7/Hub/refs/heads/Branch/GUIS/Emotes.lua"},
     {name = "AIMBOT UNIVERSAL",   url = "https://rawscripts.net/raw/Universal-Script-Universal-Aimbot-23560"},
     {name = "COQUETTE HUB",       url = "https://rawscripts.net/raw/Brookhaven-RP-Coquette-Hub-41921"},
-    {name = "FLOAT",              code = function() -- FLOAT (noclip + fly)
-        local character = player.Character or player.CharacterAdded:Wait()
-        local humanoid = character:WaitForChild("Humanoid")
-        local root = character:WaitForChild("HumanoidRootPart")
-
-        humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-        root.Anchored = false
-
-        local flySpeed = 50
-        local flying = true
-
-        local function fly()
-            local bv = Instance.new("BodyVelocity")
-            bv.Velocity = Vector3.new(0, 0, 0)
-            bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-            bv.Parent = root
-
-            while flying and root and root.Parent do
-                local cam = workspace.CurrentCamera
-                local move = Vector3.new()
-                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
-                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
-                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
-                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
-                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0, 1, 0) end
-                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.LeftControl) then move = move - Vector3.new(0, 1, 0) end
-                bv.Velocity = move.Unit * flySpeed
-                task.wait()
-            end
-            if bv then bv:Destroy() end
-        end
-
-        spawn(fly)
-        player.CharacterAdded:Connect(function(newChar)
-            task.wait(1)
-            if flying then
-                character = newChar
-                humanoid = character:WaitForChild("Humanoid")
-                root = character:WaitForChild("HumanoidRootPart")
-                spawn(fly)
-            end
-        end)
-
-        game:GetService("UserInputService").InputBegan:Connect(function(input)
-            if input.KeyCode == Enum.KeyCode.F then
-                flying = not flying
-                if flying then spawn(fly) end
-            end
-        end)
-    end},
-    {name = "SALIR RÁPIDO",       code = function() -- SALIR DEL JUEGO
+    {name = "FLOAT (PRESIONA F)", code = function() end}, -- Se maneja con tecla F
+    {name = "SALIR RÁPIDO",       code = function()
         local confirmLeave = Instance.new("Frame")
         confirmLeave.Size = UDim2.new(0, 340, 0, 170)
         confirmLeave.Position = UDim2.new(0.5, -170, 1.5, 0)
@@ -276,10 +330,6 @@ local scripts = {
         cTitle.ZIndex = 51
         cTitle.Parent = confirmLeave
 
-        local cTitleCorner = Instance.new("UICorner")
-        cTitleCorner.CornerRadius = UDim.new(0, 20)
-        cTitleCorner.Parent = cTitle
-
         local cText = Instance.new("TextLabel")
         cText.Size = UDim2.new(1, -20, 0, 60)
         cText.Position = UDim2.new(0, 10, 0, 60)
@@ -302,10 +352,6 @@ local scripts = {
         yesLeave.ZIndex = 51
         yesLeave.Parent = confirmLeave
 
-        local yesLCorner = Instance.new("UICorner")
-        yesLCorner.CornerRadius = UDim.new(0, 14)
-        yesLCorner.Parent = yesLeave
-
         local noLeave = Instance.new("TextButton")
         noLeave.Size = UDim2.new(0, 130, 0, 45)
         noLeave.Position = UDim2.new(0, 175, 1, -65)
@@ -316,16 +362,11 @@ local scripts = {
         noLeave.ZIndex = 51
         noLeave.Parent = confirmLeave
 
-        local noLCorner = Instance.new("UICorner")
-        noLCorner.CornerRadius = UDim.new(0, 14)
-        noLCorner.Parent = noLeave
-
         yesLeave.MouseButton1Click:Connect(function()
             TweenService:Create(confirmLeave, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -170, -0.5, 0)}):Play()
             task.wait(0.3)
             confirmLeave:Destroy()
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player) -- Sale y vuelve al menú
-            -- Alternativa: player:Kick("Has salido del juego.") -- Si quieres desconectar
+            player:Kick("Has salido del juego.")
         end)
 
         noLeave.MouseButton1Click:Connect(function()
@@ -355,13 +396,11 @@ for i, scriptData in ipairs(scripts) do
     btnCorner.CornerRadius = UDim.new(0, 14)
     btnCorner.Parent = btn
 
-    -- Pulse
     local pulse = TweenService:Create(btn, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
         Size = UDim2.new(1, -5, 0, 52)
     })
     pulse:Play()
 
-    -- Hover
     btn.MouseEnter:Connect(function()
         TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 255, 170)}):Play()
         TweenService:Create(btn, TweenInfo.new(0.2), {TextColor3 = Color3.new(0, 0, 0)}):Play()
@@ -371,89 +410,18 @@ for i, scriptData in ipairs(scripts) do
         TweenService:Create(btn, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(0, 255, 170)}):Play()
     end)
 
-    -- === EJECUTAR SCRIPT ===
     btn.MouseButton1Click:Connect(function()
         if scriptData.url then
-            -- Scripts externos
-            local confirm = Instance.new("Frame")
-            confirm.Size = UDim2.new(0, 340, 0, 170)
-            confirm.Position = UDim2.new(0.5, -170, 1.5, 0)
-            confirm.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-            confirm.ZIndex = 30
-            confirm.Parent = screenGui
-
-            local cCorner = Instance.new("UICorner")
-            cCorner.CornerRadius = UDim.new(0, 20)
-            cCorner.Parent = confirm
-
-            TweenService:Create(confirm, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-                Position = UDim2.new(0.5, -170, 0.5, -85)
-            }):Play()
-
-            local cTitle = Instance.new("TextLabel")
-            cTitle.Size = UDim2.new(1, 0, 0, 55)
-            cTitle.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-            cTitle.Text = "CONFIRMAR"
-            cTitle.TextColor3 = Color3.new(1, 1, 1)
-            cTitle.Font = Enum.Font.GothamBold
-            cTitle.TextSize = 20
-            cTitle.ZIndex = 31
-            cTitle.Parent = confirm
-
-            local cText = Instance.new("TextLabel")
-            cText.Size = UDim2.new(1, -20, 0, 60)
-            cText.Position = UDim2.new(0, 10, 0, 60)
-            cText.BackgroundTransparency = 1
-            cText.Text = "¿Ejecutar\n" .. scriptData.name .. "?"
-            cText.TextColor3 = Color3.new(1, 1, 1)
-            cText.Font = Enum.Font.Gotham
-            cText.TextSize = 17
-            cText.TextWrapped = true
-            cText.ZIndex = 31
-            cText.Parent = confirm
-
-            local yesBtn = Instance.new("TextButton")
-            yesBtn.Size = UDim2.new(0, 130, 0, 45)
-            yesBtn.Position = UDim2.new(0, 55, 1, -65)
-            yesBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-            yesBtn.Text = "SÍ"
-            yesBtn.TextColor3 = Color3.new(1, 1, 1)
-            yesBtn.Font = Enum.Font.GothamBold
-            yesBtn.ZIndex = 31
-            yesBtn.Parent = confirm
-
-            local noBtn = Instance.new("TextButton")
-            noBtn.Size = UDim2.new(0, 130, 0, 45)
-            noBtn.Position = UDim2.new(0, 175, 1, -65)
-            noBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-            noBtn.Text = "NO"
-            noBtn.TextColor3 = Color3.new(1, 1, 1)
-            noBtn.Font = Enum.Font.GothamBold
-            noBtn.ZIndex = 31
-            noBtn.Parent = confirm
-
-            yesBtn.MouseButton1Click:Connect(function()
-                spawn(function()
-                    pcall(function()
-                        loadstring(game:HttpGet(scriptData.url))()
-                    end)
+            spawn(function()
+                pcall(function()
+                    loadstring(game:HttpGet(scriptData.url))()
                 end)
-                TweenService:Create(confirm, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -170, -0.5, 0)}):Play()
-                task.wait(0.3)
-                confirm:Destroy()
-                menu.Visible = false
-                mainButton.Text = "EJECUTADO"
-                task.wait(2)
-                mainButton.Text = "MEGA HUB"
             end)
-
-            noBtn.MouseButton1Click:Connect(function()
-                TweenService:Create(confirm, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -170, -0.5, 0)}):Play()
-                task.wait(0.3)
-                confirm:Destroy()
-            end)
+            menu.Visible = false
+            mainButton.Text = "EJECUTADO"
+            task.wait(2)
+            mainButton.Text = "MEGA HUB"
         elseif scriptData.code then
-            -- Scripts locales (FLOAT, SALIR)
             scriptData.code()
         end
     end)
@@ -467,7 +435,7 @@ scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, yPos)
 local function openMenu()
     menu.Visible = true
     TweenService:Create(menu, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = UDim2.new(0.5, -200, 0.5, -290)
+        Position = UDim2.new(0.5, -200, 0.5, -350)
     }):Play()
 end
 
@@ -479,18 +447,13 @@ local function closeMenu()
     menu.Visible = false
 end
 
--- === MOSTRAR / OCULTAR ===
 local isOpen = false
 mainButton.MouseButton1Click:Connect(function()
     isOpen = not isOpen
-    if isOpen then
-        openMenu()
-    else
-        closeMenu()
-    end
+    if isOpen then openMenu() else closeMenu() end
 end)
 
--- === ARRASTRAR SIN PEGARSE (BOTÓN) ===
+-- === ARRASTRAR SIN PEGARSE ===
 local draggingMain = false
 local dragStartMain, startPosMain
 
@@ -508,7 +471,6 @@ mainButton.InputEnded:Connect(function(input)
     end
 end)
 
--- === ARRASTRAR SIN PEGARSE (MENÚ) ===
 local draggingMenu = false
 local dragStartMenu, startPosMenu
 
@@ -526,8 +488,7 @@ menu.InputEnded:Connect(function(input)
     end
 end)
 
--- === INPUT GLOBAL ===
-game:GetService("UserInputService").InputChanged:Connect(function(input)
+UserInputService.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement then
         if draggingMain then
             local delta = input.Position - dragStartMain
@@ -540,13 +501,4 @@ game:GetService("UserInputService").InputChanged:Connect(function(input)
     end
 end)
 
--- === AUTO-REJOIN ===
-player.CharacterAdded:Connect(function()
-    task.wait(2)
-    if screenGui.Parent then
-        mainButton.Text = "MEGA HUB"
-        showInfo()
-    end
-end)
-
-print("MEGA HUB PRO V11 CARGADO! + FLOAT + SALIR RÁPIDO")
+print("MEGA HUB PRO V14 CARGADO! TODOS LOS SCRIPTS + FLOAT CON VUELO + CARTEL")
