@@ -1,0 +1,450 @@
+-- ╔═══════════════════════════════════════════════════════════╗
+-- ║   ESTABESSIII HUB - Evade (FIX 100% TECLA B + GUIs)       ║
+-- ║       Auto Jump + Revive + SPEED (Slider)                 ║
+-- ╚═══════════════════════════════════════════════════════════╝
+
+-- ===[ MÓDULO PRINCIPAL ]===
+getgenv().ESTABESSIII = {}
+
+local Player = game.Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local JumpConn, ReviveConn = nil, nil
+local JumpGui, ReviveGui, SpeedGui = nil, nil, nil
+
+-- ===[ FUNCIÓN: AUTO JUMP (FIX COMPLETO) ]===
+ESTABESSIII.AutoJump = {}
+ESTABESSIII.AutoJump.Enabled = false
+
+ESTABESSIII.AutoJump.Toggle = function(state)
+    local newState = state ~= nil and state or not ESTABESSIII.AutoJump.Enabled
+    ESTABESSIII.AutoJump.Enabled = newState
+
+    -- Desactivar conexión anterior
+    if JumpConn then JumpConn:Disconnect() end
+
+    if newState then
+        local char = Player.Character or Player.CharacterAdded:Wait()
+        local hum = char:WaitForChild("Humanoid")
+
+        JumpConn = RunService.Heartbeat:Connect(function()
+            if hum and hum.Parent then
+                local s = hum:GetState()
+                if s ~= Enum.HumanoidStateType.Jumping and s ~= Enum.HumanoidStateType.Freefall then
+                    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+
+        Player.CharacterAdded:Connect(function(newChar)
+            hum = newChar:WaitForChild("Humanoid")
+        end)
+    end
+
+    -- ===[ SINCRONIZAR GUI (SI ESTÁ ABIERTA) ]===
+    if JumpGui and JumpGui:FindFirstChild("TextButton") then
+        local btn = JumpGui.TextButton
+        btn.BackgroundColor3 = newState and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+        btn.Text = "Auto Jump: " .. (newState and "ON" or "OFF")
+    end
+
+    -- ===[ NOTIFICACIÓN CORRECTA ]===
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "ESTABESSIII";
+        Text = "Auto Jump: " .. (newState and "ACTIVADO" or "DESACTIVADO");
+        Duration = 1.5
+    })
+end
+
+-- ===[ FUNCIÓN: AUTO REVIVE ]===
+ESTABESSIII.AutoRevive = {}
+ESTABESSIII.AutoRevive.Enabled = false
+
+ESTABESSIII.AutoRevive.Toggle = function(state)
+    local newState = state ~= nil and state or not ESTABESSIII.AutoRevive.Enabled
+    ESTABESSIII.AutoRevive.Enabled = newState
+    if ReviveConn then ReviveConn:Disconnect() end
+
+    if newState then
+        ReviveConn = Player.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            local hum = char:WaitForChild("Humanoid")
+            if hum.Health == 0 then
+                for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+                    if v:IsA("RemoteEvent") and (v.Name:find("Revive") or v.Name:find("Respawn")) then
+                        v:FireServer()
+                        break
+                    end
+                end
+            end
+        end)
+    end
+
+    if ReviveGui and ReviveGui:FindFirstChild("TextButton") then
+        local btn = ReviveGui.TextButton
+        btn.BackgroundColor3 = newState and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+        btn.Text = "Auto Revive: " .. (newState and "ON" or "OFF")
+    end
+end
+
+-- ===[ FUNCIÓN: SPEED ]===
+ESTABESSIII.Speed = {}
+ESTABESSIII.Speed.Value = 16
+
+ESTABESSIII.Speed.Set = function(value)
+    ESTABESSIII.Speed.Value = math.clamp(value, 16, 200)
+    local char = Player.Character or Player.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    hum.WalkSpeed = ESTABESSIII.Speed.Value
+end
+
+Player.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid")
+    hum.WalkSpeed = ESTABESSIII.Speed.Value
+end)
+
+-- ===[ PANEL: AUTO JUMP (GUI 1) ]===
+ESTABESSIII.OpenJumpPanel = function()
+    if JumpGui then JumpGui:Destroy() end
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    JumpGui = Instance.new("Frame")
+    JumpGui.Size = UDim2.new(0, 300, 0, 180)
+    JumpGui.Position = UDim2.new(0.5, -150, 0.5, -90)
+    JumpGui.BackgroundColor3 = Color3.fromRGB(28, 38, 28)
+    JumpGui.BorderSizePixel = 0
+    JumpGui.Parent = ScreenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 14)
+    corner.Parent = JumpGui
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 45)
+    Title.BackgroundColor3 = Color3.fromRGB(22, 32, 22)
+    Title.Text = "  ESTABESSIII - Auto Jump"
+    Title.TextColor3 = Color3.fromRGB(0, 255, 120)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = JumpGui
+
+    local tCorner = Instance.new("UICorner")
+    tCorner.CornerRadius = UDim.new(0, 14)
+    tCorner.Parent = Title
+
+    -- Draggable
+    local dragging = false
+    local dragStart, startPos
+    Title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = JumpGui.Position
+        end
+    end)
+    Title.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            JumpGui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Name = "TextButton"
+    ToggleBtn.Size = UDim2.new(0.85, 0, 0.3, 0)
+    ToggleBtn.Position = UDim2.new(0.075, 0, 0.4, 0)
+    ToggleBtn.BackgroundColor3 = ESTABESSIII.AutoJump.Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+    ToggleBtn.Text = "Auto Jump: " .. (ESTABESSIII.AutoJump.Enabled and "ON" or "OFF")
+    ToggleBtn.TextColor3 = Color3.new(1,1,1)
+    ToggleBtn.Font = Enum.Font.Gotham
+    ToggleBtn.TextScaled = true
+    ToggleBtn.Parent = JumpGui
+    local btnCorner = Instance.new("UICorner", ToggleBtn); btnCorner.CornerRadius = UDim.new(0, 8)
+
+    ToggleBtn.MouseButton1Click:Connect(function()
+        ESTABESSIII.AutoJump.Toggle()
+    end)
+
+    local Close = Instance.new("TextButton")
+    Close.Size = UDim2.new(0, 35, 0, 35)
+    Close.Position = UDim2.new(1, -45, 0, 5)
+    Close.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+    Close.Text = "X"
+    Close.TextColor3 = Color3.new(1,1,1)
+    Close.Font = Enum.Font.GothamBold
+    Close.Parent = JumpGui
+    local cCorner = Instance.new("UICorner", Close); cCorner.CornerRadius = UDim.new(0, 8)
+    Close.MouseButton1Click:Connect(function() JumpGui:Destroy(); JumpGui = nil end)
+end
+
+-- ===[ PANEL: AUTO REVIVE (GUI 2) ]===
+ESTABESSIII.OpenRevivePanel = function()
+    if ReviveGui then ReviveGui:Destroy() end
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    ReviveGui = Instance.new("Frame")
+    ReviveGui.Size = UDim2.new(0, 300, 0, 180)
+    ReviveGui.Position = UDim2.new(0.5, -150, 0.5, -90)
+    ReviveGui.BackgroundColor3 = Color3.fromRGB(38, 28, 28)
+    ReviveGui.BorderSizePixel = 0
+    ReviveGui.Parent = ScreenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 14)
+    corner.Parent = ReviveGui
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 45)
+    Title.BackgroundColor3 = Color3.fromRGB(32, 22, 22)
+    Title.Text = "  ESTABESSIII - Auto Revive"
+    Title.TextColor3 = Color3.fromRGB(255, 100, 100)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = ReviveGui
+
+    local tCorner = Instance.new("UICorner")
+    tCorner.CornerRadius = UDim.new(0, 14)
+    tCorner.Parent = Title
+
+    -- Draggable
+    local dragging = false
+    local dragStart, startPos
+    Title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = ReviveGui.Position
+        end
+    end)
+    Title.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            ReviveGui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Name = "TextButton"
+    ToggleBtn.Size = UDim2.new(0.85, 0, 0.3, 0)
+    ToggleBtn.Position = UDim2.new(0.075, 0, 0.4, 0)
+    ToggleBtn.BackgroundColor3 = ESTABESSIII.AutoRevive.Enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+    ToggleBtn.Text = "Auto Revive: " .. (ESTABESSIII.AutoRevive.Enabled and "ON" or "OFF")
+    ToggleBtn.TextColor3 = Color3.new(1,1,1)
+    ToggleBtn.Font = Enum.Font.Gotham
+    ToggleBtn.TextScaled = true
+    ToggleBtn.Parent = ReviveGui
+    local btnCorner = Instance.new("UICorner", ToggleBtn); btnCorner.CornerRadius = UDim.new(0, 8)
+
+    ToggleBtn.MouseButton1Click:Connect(function()
+        ESTABESSIII.AutoRevive.Toggle()
+    end)
+
+    local Close = Instance.new("TextButton")
+    Close.Size = UDim2.new(0, 35, 0, 35)
+    Close.Position = UDim2.new(1, -45, 0, 5)
+    Close.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+    Close.Text = "X"
+    Close.TextColor3 = Color3.new(1,1,1)
+    Close.Font = Enum.Font.GothamBold
+    Close.Parent = ReviveGui
+    local cCorner = Instance.new("UICorner", Close); cCorner.CornerRadius = UDim.new(0, 8)
+    Close.MouseButton1Click:Connect(function() ReviveGui:Destroy(); ReviveGui = nil end)
+end
+
+-- ===[ PANEL: SPEED (GUI 3) ]===
+ESTABESSIII.OpenSpeedPanel = function()
+    if SpeedGui then SpeedGui:Destroy() end
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    SpeedGui = Instance.new("Frame")
+    SpeedGui.Size = UDim2.new(0, 320, 0, 200)
+    SpeedGui.Position = UDim2.new(0.5, -160, 0.5, -100)
+    SpeedGui.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    SpeedGui.BorderSizePixel = 0
+    SpeedGui.Parent = ScreenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 14)
+    corner.Parent = SpeedGui
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 45)
+    Title.BackgroundColor3 = Color3.fromRGB(22, 22, 32)
+    Title.Text = "  ESTABESSIII - SPEED"
+    Title.TextColor3 = Color3.fromRGB(100, 150, 255)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = SpeedGui
+
+    local tCorner = Instance.new("UICorner")
+    tCorner.CornerRadius = UDim.new(0, 14)
+    tCorner.Parent = Title
+
+    -- Draggable
+    local dragging = false
+    local dragStart, startPos
+    Title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = SpeedGui.Position
+        end
+    end)
+    Title.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            SpeedGui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    -- Slider Label
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0.85, 0, 0.2, 0)
+    Label.Position = UDim2.new(0.075, 0, 0.3, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = "Speed: " .. ESTABESSIII.Speed.Value
+    Label.TextColor3 = Color3.fromRGB(200, 200, 255)
+    Label.Font = Enum.Font.Gotham
+    Label.TextScaled = true
+    Label.Parent = SpeedGui
+
+    -- Slider Frame
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Size = UDim2.new(0.85, 0, 0.08, 0)
+    SliderFrame.Position = UDim2.new(0.075, 0, 0.5, 0)
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    SliderFrame.Parent = SpeedGui
+    local sCorner = Instance.new("UICorner", SliderFrame); sCorner.CornerRadius = UDim.new(0, 6)
+
+    local percent = (ESTABESSIII.Speed.Value - 16) / (200 - 16)
+    local SliderFill = Instance.new("Frame")
+    SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+    SliderFill.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+    SliderFill.Parent = SliderFrame
+    local fCorner = Instance.new("UICorner", SliderFill); fCorner.CornerRadius = UDim.new(0, 6)
+
+    local SliderBtn = Instance.new("TextButton")
+    SliderBtn.Size = UDim2.new(0, 20, 0, 20)
+    SliderBtn.Position = UDim2.new(percent, -10, 0, -6)
+    SliderBtn.BackgroundColor3 = Color3.fromRGB(200, 200, 255)
+    SliderBtn.Text = ""
+    SliderBtn.Parent = SliderFrame
+    local bCorner = Instance.new("UICorner", SliderBtn); bCorner.CornerRadius = UDim.new(1, 0)
+
+    -- Slider Logic
+    local minVal, maxVal = 16, 200
+    local sliding = false
+
+    SliderBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            sliding = true
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            sliding = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if sliding and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mouseX = input.Position.X
+            local frameX = SliderFrame.AbsolutePosition.X
+            local frameW = SliderFrame.AbsoluteSize.X
+            local relX = math.clamp(mouseX - frameX, 0, frameW)
+            local percent = relX / frameW
+            local value = math.floor(minVal + (maxVal - minVal) * percent)
+            ESTABESSIII.Speed.Set(value)
+            SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+            SliderBtn.Position = UDim2.new(percent, -10, 0, -6)
+            Label.Text = "Speed: " .. value
+        end
+    end)
+
+    -- Reset Button
+    local ResetBtn = Instance.new("TextButton")
+    ResetBtn.Size = UDim2.new(0.4, 0, 0.15, 0)
+    ResetBtn.Position = UDim2.new(0.3, 0, 0.7, 0)
+    ResetBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 120)
+    ResetBtn.Text = "Reset"
+    ResetBtn.TextColor3 = Color3.new(1,1,1)
+    ResetBtn.Font = Enum.Font.Gotham
+    ResetBtn.TextScaled = true
+    ResetBtn.Parent = SpeedGui
+    local rCorner = Instance.new("UICorner", ResetBtn); rCorner.CornerRadius = UDim.new(0, 8)
+    ResetBtn.MouseButton1Click:Connect(function()
+        ESTABESSIII.Speed.Set(16)
+        SliderFill.Size = UDim2.new(0, 0, 1, 0)
+        SliderBtn.Position = UDim2.new(0, -10, 0, -6)
+        Label.Text = "Speed: 16"
+    end)
+
+    local Close = Instance.new("TextButton")
+    Close.Size = UDim2.new(0, 35, 0, 35)
+    Close.Position = UDim2.new(1, -45, 0, 5)
+    Close.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+    Close.Text = "X"
+    Close.TextColor3 = Color3.new(1,1,1)
+    Close.Font = Enum.Font.GothamBold
+    Close.Parent = SpeedGui
+    local cCorner = Instance.new("UICorner", Close); cCorner.CornerRadius = UDim.new(0, 8)
+    Close.MouseButton1Click:Connect(function() SpeedGui:Destroy(); SpeedGui = nil end)
+end
+
+-- ===[ KAVO UI ]===
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("ESTABESSIII HUB - Evade", "DarkTheme")
+
+local PlayerTab = Window:NewTab("Player")
+local PlayerSec = PlayerTab:NewSection("ESTABESSIII - Controles")
+
+PlayerSec:NewButton("Abrir Panel Auto Jump", "Bunny Hop infinito", function()
+    ESTABESSIII.OpenJumpPanel()
+end)
+
+PlayerSec:NewButton("Abrir Panel Auto Revive", "Revive automático", function()
+    ESTABESSIII.OpenRevivePanel()
+end)
+
+PlayerSec:NewButton("Abrir Panel SPEED", "Slider de velocidad 16-200", function()
+    ESTABESSIII.OpenSpeedPanel()
+end)
+
+local MovementTab = Window:NewTab("Movement")
+local MoveSec = MovementTab:NewSection("Teclas Rápidas")
+MoveSec:NewLabel("Presiona B → Toggle Auto Jump (100% CORREGIDO)")
+
+-- ===[ TECLA B: Toggle Auto Jump (AHORA PERFECTO) ]===
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp or input.KeyCode ~= Enum.KeyCode.B then return end
+
+    ESTABESSIII.AutoJump.Toggle()  -- Ya sincroniza TODO
+end)
+
+-- ===[ MENSAJE DE CARGA ]===
+print("ESTABESSIII HUB cargado! Tecla B → Auto Jump (FIX 100%)")
