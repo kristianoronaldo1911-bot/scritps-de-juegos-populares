@@ -1,0 +1,187 @@
+-- ╔═══════════════════════════════════════════════════════════╗
+-- ║          AUTO JUMP + KAVO UI - Hecho por ESTABESSIII       ║
+-- ║                  Para Evade - Krnl Compatible             ║
+-- ╚═══════════════════════════════════════════════════════════╝
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("ESTABESSIII HUB - Evade", "DarkTheme")
+
+-- Variables
+getgenv().AutoJumpEnabled = false
+local AutoJumpConnection = nil
+local SubGui = nil
+local Player = game.Players.LocalPlayer
+
+-- Función Auto Jump (Bunny Hop)
+local function ToggleAutoJump(state)
+    getgenv().AutoJumpEnabled = state
+    
+    if AutoJumpConnection then
+        AutoJumpConnection:Disconnect()
+        AutoJumpConnection = nil
+    end
+
+    if state then
+        local character = Player.Character or Player.CharacterAdded:Wait()
+        local humanoid = character:WaitForChild("Humanoid")
+
+        AutoJumpConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if humanoid and humanoid.Parent then
+                local state = humanoid:GetState()
+                if state ~= Enum.HumanoidStateType.Jumping and state ~= Enum.HumanoidStateType.Freefall then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+
+        Player.CharacterAdded:Connect(function(newChar)
+            humanoid = newChar:WaitForChild("Humanoid")
+        end)
+    end
+end
+
+-- Crear GUI Secundaria Draggable
+local function OpenAutoJumpPanel()
+    if SubGui then SubGui:Destroy() end
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "ESTABESSIII_AutoJump"
+    ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+    ScreenGui.ResetOnSpawn = false
+
+    SubGui = Instance.new("Frame")
+    SubGui.Size = UDim2.new(0, 300, 0, 180)
+    SubGui.Position = UDim2.new(0.5, -150, 0.5, -90)
+    SubGui.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    SubGui.BorderSizePixel = 0
+    SubGui.Parent = ScreenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = SubGui
+
+    -- Título (Draggable)
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, 0, 0, 40)
+    Title.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    Title.BorderSizePixel = 0
+    Title.Text = "  ESTABESSIII - Auto Jump"
+    Title.TextColor3 = Color3.fromRGB(0, 255, 100)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = SubGui
+
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.Parent = Title
+
+    -- Draggable Logic
+    local dragging = false
+    local dragInput, dragStart, startPos
+    Title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = SubGui.Position
+        end
+    end)
+    Title.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            SubGui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    game:GetService("UserInputService").InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    -- Toggle Button
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Size = UDim2.new(0.8, 0, 0.25, 0)
+    ToggleBtn.Position = UDim2.new(0.1, 0, 0.3, 0)
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    ToggleBtn.BorderSizePixel = 0
+    ToggleBtn.Text = "Auto Jump: OFF"
+    ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleBtn.Font = Enum.Font.Gotham
+    ToggleBtn.TextScaled = true
+    ToggleBtn.Parent = SubGui
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = ToggleBtn
+
+    -- Estado Label
+    local Status = Instance.new("TextLabel")
+    Status.Size = UDim2.new(1, 0, 0.2, 0)
+    Status.Position = UDim2.new(0, 0, 0.6, 0)
+    Status.BackgroundTransparency = 1
+    Status.Text = "Presiona B para toggle rápido"
+    Status.TextColor3 = Color3.fromRGB(180, 180, 180)
+    Status.Font = Enum.Font.Gotham
+    Status.TextScaled = true
+    Status.Parent = SubGui
+
+    -- Cerrar
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+    CloseBtn.Position = UDim2.new(1, -40, 0, 5)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    CloseBtn.Text = "X"
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseBtn.Font = Enum.Font.GothamBold
+    CloseBtn.Parent = SubGui
+
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 8)
+    closeCorner.Parent = CloseBtn
+
+    -- Toggle Logic
+    ToggleBtn.MouseButton1Click:Connect(function()
+        local newState = not getgenv().AutoJumpEnabled
+        ToggleAutoJump(newState)
+        ToggleBtn.BackgroundColor3 = newState and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+        ToggleBtn.Text = "Auto Jump: " .. (newState and "ON" or "OFF")
+    end)
+
+    CloseBtn.MouseButton1Click:Connect(function()
+        SubGui:Destroy()
+        SubGui = nil
+    end)
+end
+
+-- Pestaña en Kavo UI
+local MovementTab = Window:NewTab("Movement")
+local AutoJumpSection = MovementTab:NewSection("Auto Jump - by ESTABESSIII")
+
+AutoJumpSection:NewButton("Abrir Panel Auto Jump", "Abre el panel draggable con toggle y tecla B", function()
+    OpenAutoJumpPanel()
+end)
+
+-- Tecla B (Toggle Global)
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.B then
+        local newState = not getgenv().AutoJumpEnabled
+        ToggleAutoJump(newState)
+        
+        -- Actualizar botón si panel abierto
+        if SubGui and SubGui:FindFirstChild("TextButton") then
+            local btn = SubGui.TextButton
+            btn.BackgroundColor3 = newState and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+            btn.Text = "Auto Jump: " .. (newState and "ON" or "OFF")
+        end
+        
+        -- Notificación opcional
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "ESTABESSIII";
+            Text = "Auto Jump: " .. (newState and "ACTIVADO" or "DESACTIVADO");
+            Duration = 2;
+        })
+    end
+end)
+
+-- Mensaje de carga
+print("ESTABESSIII HUB cargado! Usa B para toggle rápido.")
