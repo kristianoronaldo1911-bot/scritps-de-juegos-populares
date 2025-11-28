@@ -1,0 +1,192 @@
+-- KRIS TELEGUIADO DINÁMICO - Guarda TU BASE automáticamente 👑💜
+-- 1. Ejecuta → Te mata/respawnea → Detecta base → VA a TU BASE y la GUARDA
+-- 2. Menú listo → "ACTIVAR TELEGUIADO" → Flota directo a TU BASE guardada
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local lp = Players.LocalPlayer
+
+-- POSICIONES DE DETECCIÓN (spawns al respawnear en base enemiga)
+local SpawnPoints = {
+    Vector3.new(-134.33, 77.66, -263.97),  -- 1
+    Vector3.new(-135.03, 77.66, -166.71),  -- 2
+    Vector3.new(-134.89, 77.66, -52.55),   -- 3
+    Vector3.new(-136.30, 77.66, 40.70),    -- 4
+    Vector3.new(-15.56, 77.66, 41.46),     -- 5
+    Vector3.new(-15.05, 77.66, -56.76),    -- 6
+    Vector3.new(-14.97, 77.66, -170.25),   -- 7
+    Vector3.new(-15.16, 77.66, -264.69)    -- 8
+}
+
+-- TU BASE CORRESPONDIENTE (predefinidas exactas)
+local MyBases = {
+    Vector3.new(-134.51, 77.39, -282.30),  -- 1
+    Vector3.new(-20.28, 77.39, -285.26),   -- 2
+    Vector3.new(-21.54, 77.39, -58.01),    -- 3
+    Vector3.new(-14.91, 77.66, -56.85),    -- 4
+    Vector3.new(-15.54, 77.66, -55.00),    -- 5
+    Vector3.new(-15.08, 77.66, -55.84),    -- 6
+    Vector3.new(-15.08, 77.66, -55.84),    -- 7 (ajustada)
+    Vector3.new(-14.98, 77.66, -57.67)     -- 8
+}
+
+local savedMyBase = nil  -- Aquí se guarda TU BASE
+local guiReady = false
+
+-- == MENÚ MOVIBLE ==
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "KRIS_TELE"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.Size = UDim2.new(0, 320, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -90)
+MainFrame.BackgroundColor3 = Color3.new(0.08, 0.08, 0.15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true  -- ¡ARRÁSTRALO!
+
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 55)
+Title.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
+Title.Text = "KRIS TELEGUIADO 👑"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 24
+Title.TextStrokeTransparency = 0
+Title.TextStrokeColor3 = Color3.new(0,0,0)
+
+local ActivateBtn = Instance.new("TextButton")
+ActivateBtn.Parent = MainFrame
+ActivateBtn.Size = UDim2.new(0.9, 0, 0, 55)
+ActivateBtn.Position = UDim2.new(0.05, 0, 0.4, 0)
+ActivateBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+ActivateBtn.Text = "ACTIVAR TELEGUIADO"
+ActivateBtn.TextColor3 = Color3.new(1,1,1)
+ActivateBtn.Font = Enum.Font.GothamBold
+ActivateBtn.TextSize = 20
+ActivateBtn.TextStrokeTransparency = 0
+ActivateBtn.TextStrokeColor3 = Color3.new(0,0,0)
+
+local Status = Instance.new("TextLabel")
+Status.Parent = MainFrame
+Status.Size = UDim2.new(1, -20, 0, 60)
+Status.Position = UDim2.new(0, 10, 0.75, 0)
+Status.BackgroundTransparency = 1
+Status.Text = "Ejecutando... Respawneando para detectar"
+Status.TextColor3 = Color3.new(1,1,1)
+Status.Font = Enum.Font.Gotham
+Status.TextSize = 16
+Status.TextWrapped = true
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = Title
+CloseBtn.Size = UDim2.new(0, 45, 0, 45)
+CloseBtn.Position = UDim2.new(1, -50, 0, 5)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1,0,0)
+CloseBtn.TextSize = 26
+CloseBtn.Font = Enum.Font.GothamBold
+
+-- Función detectar base
+local function detectBase(pos)
+    for i, spawn in ipairs(SpawnPoints) do
+        if (pos - spawn).Magnitude < 35 then
+            return i
+        end
+    end
+    return nil
+end
+
+-- Función ir a posición guardada (float suave)
+local function goToSaved()
+    if not savedMyBase then
+        Status.Text = "¡Error! No hay base guardada. Re-ejecuta."
+        return
+    end
+
+    local root = lp.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    Status.Text = "¡TELEGUIADO ACTIVADO! Flotando a TU BASE..."
+    ActivateBtn.Text = "FLOTANDO..."
+    ActivateBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+
+    -- BodyVelocity para float suave
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(4e5, 4e5, 4e5)
+    bv.Velocity = Vector3.new(0,0,0)
+    bv.Parent = root
+
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        if not root.Parent then conn:Disconnect() return end
+        local dist = (savedMyBase - root.Position).Magnitude
+        if dist < 8 then
+            bv:Destroy()
+            conn:Disconnect()
+            Status.Text = "¡LLEGASTE A TU BASE! 👑💜"
+            ActivateBtn.Text = "ACTIVAR TELEGUIADO"
+            ActivateBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+            return
+        end
+        local dir = (savedMyBase - root.Position).Unit
+        bv.Velocity = dir * math.min(dist * 2.5, 250)
+    end)
+end
+
+-- Botón activar
+ActivateBtn.MouseButton1Click:Connect(goToSaved)
+
+-- Cerrar/abrir
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
+
+UserInputService.InputBegan:Connect(function(key)
+    if key.KeyCode == Enum.KeyCode.Insert then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+
+-- == PROCESO AUTOMÁTICO AL EJECUTAR ==
+print("^3[KRIS] Iniciando detección de TU BASE...")
+
+-- Mata para respawnear
+if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+    lp.Character.Humanoid.Health = 0
+end
+
+-- Al respawnear: detectar + ir a TU BASE + guardar
+lp.CharacterAdded:Connect(function(newChar)
+    local root = newChar:WaitForChild("HumanoidRootPart")
+    task.wait(2.5)  -- Espera spawn estable
+
+    local baseIndex = detectBase(root.Position)
+    if baseIndex and MyBases[baseIndex] then
+        savedMyBase = MyBases[baseIndex]
+        Status.Text = string.format("¡BASE %d DETECTADA!\nTU BASE GUARDADA\nPos: %.1f, %.1f, %.1f", 
+            baseIndex, savedMyBase.X, savedMyBase.Y, savedMyBase.Z)
+        
+        -- Ir YA a TU BASE para confirmar
+        root.CFrame = CFrame.new(savedMyBase + Vector3.new(0, 5, 0))
+        task.wait(1)
+        
+        guiReady = true
+        print("^2[KRIS] TU BASE GUARDADA! Base " .. baseIndex .. " → Listo para teleguiado")
+    else
+        Status.Text = "Error en detección. Re-ejecuta el script."
+        print("^1[KRIS] No detectó base. Reintenta.")
+    end
+end)
+
+print([[
+KRIS TELEGUIADO DINÁMICO CARGADO 👑💜
+→ Respawneando... Guardando TU BASE automáticamente
+→ Menú listo (arrástralo) | Insert: toggle | ACTIVAR: ve flotando a casa
+]])
