@@ -1,5 +1,3 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/kristianoronaldo1911-bot/scritps-de-juegos-populares/refs/heads/main/auto-obby-meowl"))()
-
 -- Auto Obby Meowl Script para Xeno Executor
 
 local Players = game:GetService("Players")
@@ -147,3 +145,9 @@ button.MouseButton1Click:Connect(function()
 end)
 
 print("GUI Auto Obby Meowl cargada!")
+Tab:AddButton({
+    Name = "Cargar Auto Obby Meowl",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/kristianoronaldo1911-bot/scritps-de-juegos-populares/refs/heads/main/auto-obby-meowl"))()
+    end
+})
