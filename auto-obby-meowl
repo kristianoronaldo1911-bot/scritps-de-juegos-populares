@@ -1,3 +1,5 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/kristianoronaldo1911-bot/scritps-de-juegos-populares/refs/heads/main/auto-obby-meowl"))()
+
 -- Auto Obby Meowl Script para Xeno Executor
 
 local Players = game:GetService("Players")
